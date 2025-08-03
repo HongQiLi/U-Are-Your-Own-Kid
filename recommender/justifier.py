@@ -1,8 +1,13 @@
 # recommender/justifier.py
-from models.task_model import Task
-
 def generate_task_reason(task: Task) -> str:
     """
-    根据任务标签与用户兴趣生成解释文本 / Generate task explanation from task tags and interests
+    更自然的推荐理由 / Natural task reasoning
     """
-    return f"任务 {task.name} 是基于你的兴趣标签 {task.tags} 推荐的，旨在帮助你成长。"
+    base = f"任务「{task.name}」结合你的兴趣和成长目标，"
+    if "运动" in task.tags:
+        reason = base + "并安排在你专注力较低的时段，帮助你调节状态，提升整体效率。"
+    elif "学习" in task.tags:
+        reason = base + "并安排在你认知活跃的时间，有利于深入思考与知识内化。"
+    else:
+        reason = base + "是整体成长路径中的关键组成部分，建议你按时完成。"
+    return reason
