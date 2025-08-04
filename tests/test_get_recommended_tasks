@@ -1,0 +1,16 @@
+# 接口测试：测试 FastAPI 接口是否正常返回任务推荐
+def test_get_recommended_tasks():
+    test_user_profile = {
+        "name": "小红",
+        "age": 15,
+        "goals": ["提升表达能力"],
+        "survey": {
+            "interests": ["写作", "阅读"]
+        },
+        "availability": ["周一下午", "周六上午"]
+    }
+
+    response = client.post("/recommend/tasks", json=test_user_profile)
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+    print("✅ 接口测试成功 / Response:", response.json())
