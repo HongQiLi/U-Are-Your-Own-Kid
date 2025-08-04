@@ -13,3 +13,7 @@ def test_recommend_tasks():
     )
     result = recommend_tasks(dummy_user)
     assert result is not None
+from fastapi.testclient import TestClient
+from main import app
+
+client = TestClient(app)
