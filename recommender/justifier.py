@@ -1,21 +1,78 @@
-# recommender/justifier.py
-# 推荐理由解释模块 / Task Explanation Module
-
-from models.task_model import Task
+import os
+import requests
 from models.user_model import UserProfile
+from recommender.core import build_prompt
 
-def generate_task_reason(task: Task, user_profile: UserProfile) -> str:
-    """
-    根据兴趣、目标、时间、人体节律生成推荐理由
-    Generate reason based on interests, goals, schedule and human efficiency rhythms
-    """
+# Function to generate reasoning using OpenAI GPT
+def llm_openai(user_profile: UserProfile) -> str:
+    prompt = build_prompt(user_profile)
+    api_key = os.getenv("OPENAI_API_KEY")
 
-    interest_match = ", ".join(tag for tag in task.tags if tag in user_profile.survey.get("interests", []))
-    available_times = user_profile.availability
-    time_mention = available_times[0] if available_times else "你空闲的时间段"
+    if not api_key:
+        return "OpenAI API key not found."
 
-    return (
-        f"基于你对「{interest_match}」的兴趣，我们建议你安排任务「{task.name}」。"
-        f"该任务能帮助你提升相关技能，并匹配你在「{time_mention}」的可用时间。"
-        f"同时我们结合青少年最佳专注时段与任务类型，设计了最优执行计划，帮助你高效达成目标。"
-    )
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": "gpt-3.5-turbo",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.7
+    }
+
+    response = requests.post(url, headers=headers, json=data)
+    result = response.json()
+
+    return result.get("choices", [{}])[0].get("message", {}).get("content", "No response from OpenAI")
+
+# Function to generate reasoning using Cohere
+def llm_cohere(user_profile: UserProfile) -> str:
+    prompt = build_prompt(user_profile)
+    api_key = os.getenv("COHERE_API_KEY")
+
+    if not api_key:
+        return "Cohere API key not found."
+
+    url = "https://api.cohere.ai/v1/chat"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": "command-r",
+        "message": prompt,
+        "temperature": 0.3
+    }
+
+    response = requests.post(url, headers=headers, json=data)
+    result = response.json()
+
+    return result.get("text", "No response from Cohere")
+
+# Function to generate reasoning using DeepSeek (hosted on Hugging Face)
+def llm_deepseek(user_profile: UserProfile) -> str:
+    prompt = build_prompt(user_profile)
+    api_key = os.getenv("HF_API_KEY")
+
+    if not api_key:
+        return "Hugging Face API key not found."
+
+    url = "https://api-inference.huggingface.co/models/deepseek-ai/deepseek-coder-6.7b-instruct"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "inputs": prompt,
+        "parameters": {"max_new_tokens": 150}
+    }
+
+    response = requests.post(url, headers=headers, json=data)
+    result = response.json()
+
+    return result[0].get("generated_text", "No response from DeepSeek")
