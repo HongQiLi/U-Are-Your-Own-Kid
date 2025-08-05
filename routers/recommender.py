@@ -1,16 +1,29 @@
 # routers/recommender.py
 # 推荐系统路由 / Recommender API Router
 
-from fastapi import APIRouter
-from models.user_model import UserProfile  # 导入用户画像模型 / Import user profile model
-from models.task_model import Task         # 导入任务模型 / Import task schema
-from recommender.core import recommend_tasks  # 导入推荐逻辑核心函数 / Import core recommendation function
+from fastapi import APIRouter, HTTPException
+from models.user_model import UserProfile
+from recommender.core import recommend_tasks
+from typing import List
+from models.task_model import Task
 
-router = APIRouter()  # 创建路由实例 / Create router instance
+router = APIRouter()
 
-@router.post("/tasks", response_model=list[Task])
+# =========================
+# POST /recommend/tasks
+# 生成推荐任务列表
+# =========================
+@router.post("/recommend/tasks", response_model=List[Task])
 async def get_recommended_tasks(user_profile: UserProfile):
     """
-    根据用户画像推荐任务 / Recommend tasks based on user profile
+    Generate a list of recommended tasks based on user's profile:
+    - Interests extracted from the survey
+    - Daily availability
+    - Scientific patterns for optimal timing (e.g., morning learning, evening reflection)
     """
-    return await recommend_tasks(user_profile)
+    try:
+        tasks = await recommend_tasks(user_profile)
+        return tasks
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate recommendations: {str(e)}")
+
