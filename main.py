@@ -3,6 +3,7 @@
 
 from fastapi import FastAPI
 from routers import user, schedule, recommender, feedback, parent, calendar_sync
+from fastapi.staticfiles import StaticFiles
 
 # 创建 FastAPI 实例 / Create FastAPI app
 app = FastAPI(
@@ -18,6 +19,7 @@ app.include_router(recommender.router, prefix="/recommend", tags=["Recommender"]
 app.include_router(feedback.router, prefix="/feedback", tags=["Feedback"])
 app.include_router(parent.router, prefix="/parent", tags=["Parent"])
 app.include_router(calendar_sync.router, prefix="/calendar", tags=["Calendar"])
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 # 运行方法/ Run the app:
 # uvicorn main:app --reload
