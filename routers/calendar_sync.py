@@ -83,3 +83,48 @@ def view_calendar_log(child_id: str):
     """
     external_calendar = load_json(CALENDAR_FILE)
     return external_calendar.get(child_id, [])
+
+from fastapi import Body
+
+# =====================
+#  拖拽更新任务接口 / Update calendar event timing (e.g., after dragging in UI)
+# =====================
+
+@router.put("/calendar/{child_id}/update")
+def update_calendar_event(
+    child_id: str,
+    old_title: str = Body(..., embed=True, description="原任务名称 / Old task name"),
+    new_title: str = Body(..., embed=True, description="新任务名称 / New task name"),
+    new_duration: int = Body(..., embed=True, description="新任务时长 / New task duration (minutes)")
+):
+    """
+    拖拽后更新日历任务 / Update a previously imported calendar task
+    """
+    external_calendar = load_json(CALENDAR_FILE)
+    child_task_store = load_json(TASK_FILE)
+
+    found = False
+
+    # 更新外部日历记录 / Update external calendar
+    for evt in external_calendar.get(child_id, []):
+        if evt["title"] == old_title:
+            evt["title"] = new_title
+            evt["duration"] = new_duration
+            found = True
+            break
+
+    # 更新同步任务列表 / Update synced child task
+    for task in child_task_store.get(child_id, []):
+        if task["name"] == old_title:
+            task["name"] = new_title
+            task["duration"] = new_duration
+            break
+
+    if not found:
+        raise HTTPException(status_code=404, detail="Event not found.")
+
+    save_json(CALENDAR_FILE, external_calendar)
+    save_json(TASK_FILE, child_task_store)
+
+    return {"message": "Event updated successfully."}
+
