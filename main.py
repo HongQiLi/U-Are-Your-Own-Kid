@@ -4,6 +4,17 @@
 from fastapi import FastAPI
 from routers import user, schedule, recommender, feedback, parent, calendar_sync
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+# 首页路由
+@app.get("/")
+def serve_home():
+    return FileResponse("front/index.html")
+
+# 日历页面路由
+@app.get("/calendar-page")
+def serve_calendar():
+    return FileResponse("front/calendar.html")
 
 # 创建 FastAPI 实例 / Create FastAPI app
 app = FastAPI(
