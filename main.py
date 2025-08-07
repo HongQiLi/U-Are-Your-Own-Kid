@@ -1,6 +1,10 @@
 # main.py
 # 应用主入口 / Application Entry Point
 
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, Request
 from routers import user, schedule, recommender, feedback, parent, calendar_sync
 from fastapi.staticfiles import StaticFiles
