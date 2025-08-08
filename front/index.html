@@ -16,14 +16,14 @@
 <body>
   <h1>AI 规划对话 / AI Planning Chat</h1>
 
-  <!-- 文本输入框：用户输入提示 -->
-  <label for="prompt">输入你的需求 / Enter your prompt:</label><br/>
-  <textarea id="prompt" placeholder="例如：帮我给孩子设计三种高效学习计划"></textarea><br/>
+  <!-- 文本输入框：用户输入提示/User input -->
+  <label for="prompt">Enter your prompt:</label><br/>
+  <textarea id="prompt" placeholder="exmp：help my kid to build a bright future path"></textarea><br/>
 
-  <!-- 发送按钮 -->
-  <button id="sendBtn">发送给 AI / Send to AI</button>
+  <!-- 发送按钮/Send Button -->
+  <button id="sendBtn">Send to Model</button>
 
-  <!-- 结果展示区 -->
+  <!-- 结果展示区/Display -->
   <div id="results">
     <!-- 每个 provider 的回复都会追加到这里 -->
   </div>
@@ -49,7 +49,7 @@
         const resp = await fetch('/test-llm?prompt=' + encodeURIComponent(prompt));
         const data = await resp.json();
 
-        // 渲染三家 Provider 的回复
+        // 渲染三家 Provider 的回复/there type of models
         resultsDiv.innerHTML = '';
         for (const [name, text] of Object.entries(data)) {
           const container = document.createElement('div');
@@ -64,7 +64,7 @@
           resultsDiv.appendChild(container);
         }
       } catch (err) {
-        resultsDiv.innerHTML = '<p style="color:red">请求失败，请检查控制台 / Request failed, see console for details.</p>';
+        resultsDiv.innerHTML = '<p style="color:red">Request failed, see console for details.</p>';
         console.error(err);
       }
     });
