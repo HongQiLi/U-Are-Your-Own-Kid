@@ -1,5 +1,4 @@
 # routers/calendar_sync.py
-# 日历同步模块（合并版）/ Calendar Sync (merged)
 # 目标：
 # 1) 导入外部日历事件并同步为孩子任务
 # 2) 支持查看与更新外部导入的事件
