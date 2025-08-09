@@ -1,42 +1,56 @@
 # utils/openai_client.py
-# OpenAI 客户端（Chat Completions，新版 SDK）
-# OpenAI client using the modern Chat Completions API
+# OpenAI 客户端（SDK v1 写法），统一输出短文本建议列表
 
 import os
+from typing import List
 from openai import OpenAI
 
-def _get_openai_client():
-    """
-    懒加载 OpenAI 客户端；如果没有配置密钥，不抛异常，交给上层处理。
-    Lazy-create OpenAI client; do not crash import if key is missing.
-    """
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-    return OpenAI(api_key=api_key)
+api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=api_key) if api_key else None
 
 def generate_openai_reply(prompt: str) -> str:
     """
-    生成 OpenAI 回复（默认 gpt-4o-mini，可通过环境变量 OPENAI_MODEL 覆盖）
-    Generate a reply using OpenAI (default gpt-4o-mini; override via OPENAI_MODEL).
+    返回一段纯文本（用于展示/调试）
     """
-    client = _get_openai_client()
-    if client is None:
+    if not client:
         return "OpenAI not configured: missing OPENAI_API_KEY"
 
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role":"user","content":prompt}],
+        temperature=0.7,
+        max_tokens=300
+    )
+    return resp.choices[0].message.content.strip()
 
+def suggest_activities_with_openai(prompt: str) -> List[dict]:
+    """
+    让模型输出 JSON 风格的活动建议（title/duration/tag）
+    返回：[{title, duration, tag, reason}, ...]
+    """
+    if not client:
+        return []
+
+    sys = (
+        "You are an assistant that outputs kid-friendly activity suggestions. "
+        "Return 3-5 items as JSON array with fields: title (string), duration (int, minutes), "
+        "tag (one of skill, reading, sport, social, art), reason (string). No extra text."
+    )
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role":"system","content":sys},{"role":"user","content":prompt}],
+        temperature=0.6,
+        max_tokens=400
+    )
+    text = resp.choices[0].message.content.strip()
+
+    # 简单兜底解析：如果不是严格 JSON，就包一层
+    import json
     try:
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": "You are a helpful planner for youth growth and study."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=300
-        )
-        content = resp.choices[0].message.content if resp.choices else ""
-        return content.strip() if content else "No content from OpenAI."
-    except Exception as e:
-        return f"OpenAI error: {str(e)}"
+        data = json.loads(text)
+        if isinstance(data, list):
+            return data
+        return []
+    except Exception:
+        # 解析失败时，退化为单条建议
+        return [{"title": text[:40], "duration": 45, "tag": "skill", "reason": "AI free-form response"}]
