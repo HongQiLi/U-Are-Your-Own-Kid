@@ -1,70 +1,174 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Child Calendar</title>
+  <meta charset="UTF-8"/>
+  <title>规划日历 / Planning Calendar</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-  <!-- 引入 Bootstrap 5 样式 / Import Bootstrap -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-
-  <!-- 引入 FullCalendar 的样式 / FullCalendar CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
+  <!-- FullCalendar 核心与插件（CDN） / Core & plugins -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 
   <style>
-    body {
-      padding: 1rem;
+    body { margin: 0; padding: 0; font-family: sans-serif; }
+    .layout { display: grid; grid-template-columns: 320px 1fr; height: 100vh; }
+    .sidebar { border-right: 1px solid #ddd; padding: 16px; overflow: auto; }
+    .calendar-wrap { padding: 8px; }
+    .ext-pool { margin-top: 12px; }
+    .ext-item {
+      padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 6px;
+      background: #f7f7f7; cursor: grab; user-select: none;
     }
-
-    #calendar {
-      max-width: 100%;
-      margin: 0 auto;
-    }
+    .row { margin-bottom: 8px; }
+    label { display: block; margin-bottom: 4px; font-weight: bold; }
+    input, textarea, button { width: 100%; padding: 8px; box-sizing: border-box; }
+    button { cursor: pointer; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h3 class="text-center">Child Calendar View</h3>
+<div class="layout">
+  <!-- 左侧：配置与外部活动池 / Left: controls & external events -->
+  <aside class="sidebar">
+    <h2>生成活动建议 / Generate Activities</h2>
+
+    <!-- 兴趣输入：逗号分隔 / Comma-separated interests -->
+    <div class="row">
+      <label>兴趣（逗号分隔）/ Interests (comma separated)</label>
+      <input id="interests" placeholder="例：写作, 篮球, 编程">
+    </div>
+
+    <!-- 可用时段：逗号分隔字符串 / Availability strings -->
+    <div class="row">
+      <label>可用时段 / Availability (comma separated)</label>
+      <input id="availability" placeholder="例：周一 16:00-17:00, 周六 09:00-11:00">
+    </div>
+
+    <div class="row">
+      <button id="genBtn">生成活动建议 / Generate</button>
+    </div>
+
+    <h3>可拖拽活动池 / Draggable Activities</h3>
+    <div id="extPool" class="ext-pool">
+      <!-- 生成后会放置 .ext-item，每个都能拖入日历 -->
+    </div>
+
+    <div class="row" style="margin-top:16px;">
+      <button id="saveBtn">保存当前日历 / Save Calendar</button>
+    </div>
+
+    <div class="row">
+      <button id="dumpBtn">查看已保存 / View Saved (debug)</button>
+    </div>
+  </aside>
+
+  <!-- 右侧：日历 / Right: calendar -->
+  <main class="calendar-wrap">
     <div id="calendar"></div>
-  </div>
+  </main>
+</div>
 
-  <!-- 引入必要的 JS 库 / Load FullCalendar & Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const calendarEl = document.getElementById("calendar");
+<script>
+  // 初始化日历 / Init calendar
+  document.addEventListener('DOMContentLoaded', function () {
+    const calendarEl = document.getElementById('calendar');
 
-      const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'timeGridWeek', // 以周为单位展示 / Weekly view
-        editable: true,              // 可编辑 / Enable drag & resize
-        selectable: true,            // 可选中 / Allow event creation
-        headerToolbar: {
-          left: 'prev,next today',
-          center: 'title',
-          right: 'timeGridDay,timeGridWeek,dayGridMonth'
-        },
-        events: async function(fetchInfo, successCallback, failureCallback) {
-          // 从后端获取任务 / Fetch from your FastAPI backend
-          const childId = "child_1"; // 可以动态传入
-          const res = await fetch(`/calendar/${childId}/log`);
-          const data = await res.json();
-
-          const events = data.map(event => ({
-            title: event.title,
-            start: new Date(), // 默认展示当前时间 / Replace with real time
-            duration: { minutes: event.duration }
-          }));
-
-          successCallback(events);
-        },
-        eventDrop: function(info) {
-          // 拖拽事件后，可在此发送 PATCH 请求同步后端 / Add drag-drop sync logic here
-          alert(`任务 "${info.event.title}" 被拖动了！`);
+    // FullCalendar 配置 / FullCalendar config
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: 'timeGridWeek',           // 周视图 / weekly time grid
+      slotDuration: '00:30:00',              // 时间颗粒度 / slot granularity
+      editable: true,                        // 允许在日历内拖拽 / drag inside calendar
+      droppable: true,                       // 允许从外部拖入 / allow external drop
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'timeGridDay,timeGridWeek,dayGridMonth'
+      },
+      drop: function(info) {
+        // 外部元素被拖入日历后的回调 / fired when external element dropped
+        // 这里可读取 info.draggedEl.dataset 里的自定义属性
+      },
+      eventReceive: function(info) {
+        // 新事件接收后，可在这里写默认时长、样式等逻辑
+        // 可在拖入前将 duration 存在 dataset，再在此处读取并设置 end
+        const dur = info.draggedEl.dataset.durationMins;
+        if (dur) {
+          const start = info.event.start;
+          const end = new Date(start.getTime() + parseInt(dur, 10)*60000);
+          info.event.setEnd(end);
         }
+      }
+    });
+
+    calendar.render();
+
+    // 生成按钮逻辑：请求后端 /recommend/tasks-lite
+    const genBtn = document.getElementById('genBtn');
+    const pool = document.getElementById('extPool');
+
+    genBtn.addEventListener('click', async () => {
+      const interests = document.getElementById('interests').value
+        .split(',').map(s => s.trim()).filter(Boolean);
+      const availability = document.getElementById('availability').value
+        .split(',').map(s => s.trim()).filter(Boolean);
+
+      // 调用后端轻量推荐接口 / Call backend lite recommender
+      const resp = await fetch('/recommend/tasks-lite', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ interests, availability })
+      });
+      const tasks = await resp.json();
+
+      // 渲染为可拖拽卡片（外部事件）/ Render external draggable cards
+      pool.innerHTML = '';
+      tasks.forEach(t => {
+        const div = document.createElement('div');
+        div.className = 'ext-item';
+        div.textContent = `${t.title}（${t.duration}分钟）`;
+        // 用 dataset 挂载给日历的元信息 / attach meta via dataset
+        div.dataset.event = JSON.stringify({ title: t.title, extendedProps: { tag: t.tag, reason: t.reason } });
+        div.dataset.durationMins = String(t.duration);
+        pool.appendChild(div);
       });
 
-      calendar.render();
+      // 启用 FullCalendar 外部拖拽 / Enable external drag
+      // 说明：FullCalendar v6 全局导出 Draggable 在 FullCalendar.Draggable
+      new FullCalendar.Draggable(pool, {
+        itemSelector: '.ext-item',
+        eventData: function(el) {
+          // 把外部元素的自定义数据传给日历事件 / pass dataset to event
+          const meta = JSON.parse(el.dataset.event);
+          return meta;
+        }
+      });
     });
-  </script>
+
+    // 保存按钮：将当前日历事件发送到后端 / Save events to backend
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.addEventListener('click', async () => {
+      const events = calendar.getEvents().map(ev => ({
+        title: ev.title,
+        start: ev.start?.toISOString(),
+        end: ev.end?.toISOString() || null,
+        extendedProps: ev.extendedProps || {}
+      }));
+      const resp = await fetch('/calendar/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(events)
+      });
+      const data = await resp.json();
+      alert(`已保存事件数量 / Saved count: ${data.count}`);
+    });
+
+    // 查看已保存（调试）/ View saved
+    const dumpBtn = document.getElementById('dumpBtn');
+    dumpBtn.addEventListener('click', async () => {
+      const resp = await fetch('/calendar/dump');
+      const data = await resp.json();
+      alert('已保存事件（调试）/ Saved events:\n' + JSON.stringify(data, null, 2));
+    });
+  });
+</script>
 </body>
 </html>
