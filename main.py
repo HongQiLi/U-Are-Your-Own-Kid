@@ -39,11 +39,9 @@ async def test_interest_extraction(data: dict):
         "interests": extract_interest_from_survey(data)
     }
 
-# 测试 LLM 输出
 @app.get("/test-llm")
-async def test_llm(request: Request):
-    prompt = "Give me 3 creative ways to help kids build self-discipline."
-
+async def test_llm(prompt: str = Query("Give me 3 creative ways to help kids build self-discipline.")):
+    # prompt：from input；if not provided default value
     try:
         hf_output = hf_reply(prompt)
     except Exception as e:
@@ -64,6 +62,7 @@ async def test_llm(request: Request):
         "cohere": cohere_output,
         "openai": openai_output
     }
+
 
 # 注册各功能模块对应的路由 / Register routers for each module
 app.include_router(user.router, prefix="/user", tags=["User"])
