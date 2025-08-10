@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <title>U-Are-Your-Own-Kid · 一体化规划界面</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <!-- FullCalendar -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+  <style>
+    :root{--border:#e5e7eb;--muted:#6b7280;--bg:#f9fafb}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:#fff;color:#111827}
+    .wrap{display:grid;grid-template-rows:auto 1fr auto;min-height:100vh}
+    header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center}
+    header h1{font-size:18px;margin:0 8px 0 0}
+    .btn{padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
+    .btn:active{transform:translateY(1px)}
+    .muted{color:var(--muted);font-size:12px}
+    .layout{display:grid;grid-template-columns:340px 1fr;min-height:0}
+    .side{border-right:1px solid var(--border);padding:16px;overflow:auto}
+    .calendar{padding:8px;overflow:auto}
+    .row{margin-bottom:12px}
+    label{font-weight:600;font-size:13px;margin-bottom:6px;display:block}
+    input,textarea,select{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px}
+    textarea{resize:vertical;min-height:92px}
+    .pool{display:grid;gap:8px;margin-top:10px}
+    .card{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);cursor:grab}
+    .empty{padding:16px;border:1px dashed var(--border);border-radius:10px;text-align:center;color:var(--muted)}
+    .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .chips{display:flex;gap:6px;flex-wrap:wrap}
+    .chip{font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:999px;background:#fff}
+    /* 抽屉：显示多 provider 对比 */
+    .drawer{border-top:1px solid var(--border);background:#fff}
+    .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer}
+    .drawer-body{display:none;border-top:1px solid var(--border);padding:12px 16px}
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .resp{border:1px solid var(--border);border-radius:10px;padding:10px;min-height:120px;white-space:pre-wrap}
+    .resp .name{font-weight:700;margin-bottom:6px}
+    .radio{display:flex;gap:10px;font-size:13px}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <!-- 顶部工具栏 -->
+  <header>
+    <h1>成长规划 · 一体化界面</h1>
+    <div class="toolbar">
+      <button id="saveBtn" class="btn">保存当前日历</button>
+      <button id="dumpBtn" class="btn">查看已保存（调试）</button>
+      <span class="muted">提示：把左侧卡片拖进右侧日历即可排期；或用底部 AI 生成卡片。</span>
+    </div>
+  </header>
+
+  <!-- 主区：左侧卡片池 + 右侧日历 -->
+  <section class="layout">
+    <aside class="side">
+      <div class="row">
+        <label>兴趣（逗号分隔）/ Interests</label>
+        <input id="interests" placeholder="例：写作, 篮球, 编程">
+      </div>
+      <div class="row">
+        <label>可用时段 / Availability</label>
+        <input id="availability" placeholder="例：周一 16:00-17:00, 周六 09:00-11:00">
+      </div>
+      <div class="row chips" id="quickChips">
+        <span class="chip" data-fill="写作, 阅读">写作+阅读</span>
+        <span class="chip" data-fill="钢琴, 乐理">音乐练习</span>
+        <span class="chip" data-fill="篮球, 体能训练">体能训练</span>
+      </div>
+      <div class="row">
+        <button id="genBtn" class="btn">根据兴趣生成任务</button>
+      </div>
+
+      <h3 style="margin:14px 0 8px;">可拖拽活动池 / Draggable Tasks</h3>
+      <div id="pool" class="pool">
+        <div class="empty">点击“根据兴趣生成任务”，或在下方与 AI 对话生成任务</div>
+      </div>
+    </aside>
+
+    <main class="calendar">
+      <div id="calendar"></div>
+    </main>
+  </section>
+
+  <!-- 底部：AI 对话区（可直接生成卡片；支持多 provider 对比） -->
+  <section class="drawer">
+    <div id="drawerHead" class="drawer-head">
+      <div>
+        <strong>与 AI 讨论你的需求 / Chat with AI</strong>
+        <div class="muted">点此展开/收起对比区；默认只显示输入与主要 provider</div>
+      </div>
+      <button id="toggleDrawer" class="btn">展开/收起</button>
+    </div>
+
+    <div class="drawer-body" id="drawerBody">
+      <div class="radio" style="margin-bottom:8px">
+        <label><input type="radio" name="provider" value="openai" checked> OpenAI</label>
+        <label><input type="radio" name="provider" value="cohere"> Cohere</label>
+        <label><input type="radio" name="provider" value="hf"> HF</label>
+      </div>
+      <div class="row">
+        <label for="chatPrompt">你的诉求 / Prompt</label>
+        <textarea id="chatPrompt" placeholder="例如：给我 3 条提升孩子自律的家庭活动，分别包含活动名称、时长，适合周三或周末执行。"></textarea>
+      </div>
+      <div class="toolbar" style="margin-bottom:8px">
+        <button id="askBtn" class="btn">用所选模型生成任务到卡片池</button>
+        <button id="compareBtn" class="btn">对比三家模型回复（仅展示文本）</button>
+      </div>
+
+      <!-- 三家 provider 文本对比区 -->
+      <div class="grid3" id="compareGrid" hidden>
+        <div class="resp"><div class="name">OPENAI</div><div id="openaiText" class="text muted">暂无</div></div>
+        <div class="resp"><div class="name">COHERE</div><div id="cohereText" class="text muted">暂无</div></div>
+        <div class="resp"><div class="name">HF</div><div id="hfText" class="text muted">暂无</div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  // ========= 日历初始化 =========
+  const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+    initialView: 'timeGridWeek',
+    slotDuration: '00:30:00',
+    editable: true,
+    droppable: true,
+    height: 'auto',
+    headerToolbar: { left:'prev,next today', center:'title', right:'timeGridDay,timeGridWeek,dayGridMonth' },
+    eventReceive(info){
+      const dur = info.draggedEl.dataset.durationMins;
+      if (dur){
+        const start = info.event.start;
+        info.event.setEnd(new Date(start.getTime() + parseInt(dur,10)*60000));
+      }
+    }
+  });
+  calendar.render();
+
+  // ========= 工具函数 =========
+  const pool = document.getElementById('pool');
+  function enableExternalDrag(container){
+    new FullCalendar.Draggable(container, {
+      itemSelector: '.card',
+      eventData(el){ return JSON.parse(el.dataset.event); }
+    });
+  }
+  function renderCards(tasks){
+    pool.innerHTML = '';
+    if (!tasks || tasks.length===0){
+      pool.innerHTML = '<div class="empty">没有可用任务 / No tasks</div>';
+      return;
+    }
+    tasks.forEach(t=>{
+      const div = document.createElement('div');
+      div.className = 'card';
+      const mins = t.duration || 45;
+      div.textContent = `${t.title}（${mins}分钟）`;
+      div.title = t.reason || '';
+      div.dataset.event = JSON.stringify({
+        title:t.title,
+        extendedProps:{ tag:t.tag||'', reason:t.reason||'' }
+      });
+      div.dataset.durationMins = String(mins);
+      pool.appendChild(div);
+    });
+    enableExternalDrag(pool);
+  }
+  async function postJSON(url, body){
+    const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body||{}) });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
+
+  // ========= 左侧：基于兴趣快速生成 =========
+  document.getElementById('genBtn').addEventListener('click', async ()=>{
+    const interests = document.getElementById('interests').value.split(',').map(s=>s.trim()).filter(Boolean);
+    const availability = document.getElementById('availability').value.split(',').map(s=>s.trim()).filter(Boolean);
+    try{
+      const tasks = await postJSON('/recommend/tasks-lite', { interests, availability });
+      renderCards(tasks);
+    }catch(e){ alert('生成失败：'+e.message); }
+  });
+
+  // 快捷 chip 填充
+  document.getElementById('quickChips').addEventListener('click', (e)=>{
+    const chip = e.target.closest('.chip'); if(!chip) return;
+    document.getElementById('interests').value = chip.dataset.fill;
+  });
+
+  // ========= 底部：AI 生成到卡片池 =========
+  document.getElementById('askBtn').addEventListener('click', async ()=>{
+    const prompt = document.getElementById('chatPrompt').value.trim();
+    if (!prompt) return alert('先输入你的诉求');
+    const provider = document.querySelector('input[name="provider"]:checked').value;
+    try{
+      const resp = await fetch(`/recommend/ai-suggest?provider=${encodeURIComponent(provider)}&q=${encodeURIComponent(prompt)}`);
+      if (!resp.ok) throw new Error(await resp.text());
+      const tasks = await resp.json(); // 期望 [{title,duration,tag,reason}]
+      renderCards(tasks);
+      // 展开抽屉以提示成功
+      openDrawer(true);
+    }catch(e){ alert('AI 生成失败：'+e.message); }
+  });
+
+  // ========= 文本对比：/test-llm =========
+  const openaiText = document.getElementById('openaiText');
+  const cohereText = document.getElementById('cohereText');
+  const hfText = document.getElementById('hfText');
+  document.getElementById('compareBtn').addEventListener('click', async ()=>{
+    const prompt = document.getElementById('chatPrompt').value.trim();
+    if (!prompt) return alert('先输入你的诉求');
+    try{
+      // 你的后端应返回 {openai: "...", cohere:"...", hf:"..."}
+      const r = await fetch('/test-llm?prompt=' + encodeURIComponent(prompt));
+      const data = await r.json();
+      openaiText.textContent = data.openai ?? '(无)';
+      cohereText.textContent = data.cohere ?? '(无)';
+      hfText.textContent = data.hf ?? '(无)';
+      document.getElementById('compareGrid').hidden = false;
+      openDrawer(true);
+    }catch(e){ alert('对比失败：'+e.message); }
+  });
+
+  // ========= 保存 / 查看 =========
+  document.getElementById('saveBtn').addEventListener('click', async ()=>{
+    const events = calendar.getEvents().map(ev=>({
+      title: ev.title,
+      start: ev.start?.toISOString(),
+      end: ev.end?.toISOString() || null,
+      extendedProps: ev.extendedProps || {}
+    }));
+    try{
+      const data = await postJSON('/calendar/save', events);
+      alert(`已保存 ${data.count} 条事件`);
+    }catch(e){ alert('保存失败：'+e.message); }
+  });
+  document.getElementById('dumpBtn').addEventListener('click', async ()=>{
+    const r = await fetch('/calendar/dump');
+    const data = await r.json();
+    alert('已保存事件：\n'+JSON.stringify(data,null,2));
+  });
+
+  // ========= 抽屉展开/收起 =========
+  const drawerBody = document.getElementById('drawerBody');
+  const toggleBtn = document.getElementById('toggleDrawer');
+  document.getElementById('drawerHead').addEventListener('click', (e)=>{
+    if(e.target.id==='askBtn' || e.target.id==='compareBtn') return; // 避免误折叠
+    openDrawer(drawerBody.style.display!=='block');
+  });
+  toggleBtn.addEventListener('click', (e)=>{ e.stopPropagation(); openDrawer(drawerBody.style.display!=='block'); });
+  function openDrawer(open){
+    drawerBody.style.display = open ? 'block' : 'none';
+    toggleBtn.textContent = open ? '收起' : '展开';
+  }
+  // 默认展开一次，提示用户有对话区
+  openDrawer(true);
+</script>
+</body>
+</html>
