@@ -5,170 +5,195 @@
   <title>规划日历 / Planning Calendar</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-  <!-- FullCalendar 核心与插件（CDN） / Core & plugins -->
+  <!-- FullCalendar -->
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 
   <style>
-    body { margin: 0; padding: 0; font-family: sans-serif; }
-    .layout { display: grid; grid-template-columns: 320px 1fr; height: 100vh; }
-    .sidebar { border-right: 1px solid #ddd; padding: 16px; overflow: auto; }
-    .calendar-wrap { padding: 8px; }
-    .ext-pool { margin-top: 12px; }
-    .ext-item {
-      padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 6px;
-      background: #f7f7f7; cursor: grab; user-select: none;
-    }
-    .row { margin-bottom: 8px; }
-    label { display: block; margin-bottom: 4px; font-weight: bold; }
-    input, textarea, button { width: 100%; padding: 8px; box-sizing: border-box; }
-    button { cursor: pointer; }
+    :root{--border:#e5e7eb;--muted:#6b7280;}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+    .wrap{display:grid;grid-template-rows:auto 320px;min-height:100vh}
+    header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:center}
+    header h1{font-size:18px;margin:0 8px 0 0}
+    .btn{padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer}
+    .btn:active{transform:translateY(1px)}
+    .layout{display:grid;grid-template-columns:320px 1fr;min-height:calc(100vh - 320px - 57px)}
+    .side{border-right:1px solid var(--border);padding:16px;overflow:auto}
+    .calendar{padding:8px}
+    .row{margin-bottom:10px}
+    label{font-weight:600;font-size:13px;color:#111827;margin-bottom:4px;display:block}
+    input,textarea,select{width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;box-sizing:border-box}
+    .pool{display:grid;gap:8px;margin-top:12px}
+    .card{padding:8px;border:1px solid var(--border);border-radius:8px;background:#f9fafb;cursor:grab}
+    .muted{color:var(--muted);font-size:12px}
+    .chat{border-top:1px solid var(--border);padding:12px 16px;display:grid;grid-template-columns:1fr 120px 160px;gap:8px}
+    .chat textarea{height:94px;resize:vertical}
+    .chat .col{display:flex;flex-direction:column;gap:6px}
+    .radio{display:flex;gap:10px;font-size:13px;color:#111827}
+    .empty{padding:16px;border:1px dashed var(--border);border-radius:8px;text-align:center;color:var(--muted)}
   </style>
 </head>
 <body>
-<div class="layout">
-  <!-- 左侧：配置与外部活动池 / Left: controls & external events -->
-  <aside class="sidebar">
-    <h2>生成活动建议 / Generate Activities</h2>
+  <!-- 顶部工具栏 / toolbar -->
+  <header>
+    <h1>成长规划日历</h1>
+    <button id="saveBtn" class="btn">保存当前日历</button>
+    <button id="dumpBtn" class="btn">查看已保存（调试）</button>
+    <span class="muted">将左侧卡片拖进右侧日历即可排期</span>
+  </header>
 
-    <!-- 兴趣输入：逗号分隔 / Comma-separated interests -->
-    <div class="row">
-      <label>兴趣（逗号分隔）/ Interests (comma separated)</label>
-      <input id="interests" placeholder="例：写作, 篮球, 编程">
+  <!-- 上半部分：左侧卡片池 + 右侧日历 -->
+  <section class="layout">
+    <aside class="side">
+      <div class="row">
+        <label>兴趣（逗号分隔）/ Interests</label>
+        <input id="interests" placeholder="例：写作, 篮球, 编程">
+      </div>
+      <div class="row">
+        <label>可用时段 / Availability</label>
+        <input id="availability" placeholder="例：周一 16:00-17:00, 周六 09:00-11:00">
+      </div>
+      <div class="row">
+        <button id="genBtn" class="btn">根据兴趣生成任务</button>
+      </div>
+
+      <h3 style="margin:14px 0 8px;">可拖拽活动池 / Draggable Tasks</h3>
+      <div id="pool" class="pool">
+        <div class="empty">点击上面的按钮或在下方与 AI 对话生成任务</div>
+      </div>
+    </aside>
+
+    <main class="calendar">
+      <div id="calendar"></div>
+    </main>
+  </section>
+
+  <!-- 下半部分：AI 对话区 -->
+  <section class="chat">
+    <div class="col">
+      <label>与 AI 讨论你的需求 / Chat with AI</label>
+      <textarea id="prompt" placeholder="例如：给我 3 条提升孩子自律的家庭活动，分别包含活动名称、时长，适合周三或周末执行。"></textarea>
     </div>
-
-    <!-- 可用时段：逗号分隔字符串 / Availability strings -->
-    <div class="row">
-      <label>可用时段 / Availability (comma separated)</label>
-      <input id="availability" placeholder="例：周一 16:00-17:00, 周六 09:00-11:00">
+    <div class="col">
+      <label>模型 / Provider</label>
+      <div class="radio">
+        <label><input type="radio" name="provider" value="openai" checked> OpenAI</label>
+        <label><input type="radio" name="provider" value="cohere"> Cohere</label>
+        <label><input type="radio" name="provider" value="hf"> HF</label>
+      </div>
+      <button id="askBtn" class="btn">让 AI 生成任务</button>
     </div>
-
-    <div class="row">
-      <button id="genBtn">生成活动建议 / Generate</button>
+    <div class="col">
+      <label class="muted">说明 / Notes</label>
+      <div class="muted">AI 返回的任务会自动出现在左侧卡片池，直接拖进日历。</div>
     </div>
+  </section>
 
-    <h3>可拖拽活动池 / Draggable Activities</h3>
-    <div id="extPool" class="ext-pool">
-      <!-- 生成后会放置 .ext-item，每个都能拖入日历 -->
-    </div>
-
-    <div class="row" style="margin-top:16px;">
-      <button id="saveBtn">保存当前日历 / Save Calendar</button>
-    </div>
-
-    <div class="row">
-      <button id="dumpBtn">查看已保存 / View Saved (debug)</button>
-    </div>
-  </aside>
-
-  <!-- 右侧：日历 / Right: calendar -->
-  <main class="calendar-wrap">
-    <div id="calendar"></div>
-  </main>
-</div>
-
-<script>
-  // 初始化日历 / Init calendar
-  document.addEventListener('DOMContentLoaded', function () {
+  <script>
+    // ======== 日历初始化 / Init calendar ========
     const calendarEl = document.getElementById('calendar');
-
-    // FullCalendar 配置 / FullCalendar config
     const calendar = new FullCalendar.Calendar(calendarEl, {
-      initialView: 'timeGridWeek',           // 周视图 / weekly time grid
-      slotDuration: '00:30:00',              // 时间颗粒度 / slot granularity
-      editable: true,                        // 允许在日历内拖拽 / drag inside calendar
-      droppable: true,                       // 允许从外部拖入 / allow external drop
-      headerToolbar: {
-        left: 'prev,next today',
-        center: 'title',
-        right: 'timeGridDay,timeGridWeek,dayGridMonth'
-      },
-      drop: function(info) {
-        // 外部元素被拖入日历后的回调 / fired when external element dropped
-        // 这里可读取 info.draggedEl.dataset 里的自定义属性
-      },
-      eventReceive: function(info) {
-        // 新事件接收后，可在这里写默认时长、样式等逻辑
-        // 可在拖入前将 duration 存在 dataset，再在此处读取并设置 end
+      initialView: 'timeGridWeek',
+      slotDuration: '00:30:00',
+      editable: true,
+      droppable: true,
+      headerToolbar: { left:'prev,next today', center:'title', right:'timeGridDay,timeGridWeek,dayGridMonth' },
+      eventReceive(info){
         const dur = info.draggedEl.dataset.durationMins;
-        if (dur) {
+        if (dur){
           const start = info.event.start;
-          const end = new Date(start.getTime() + parseInt(dur, 10)*60000);
-          info.event.setEnd(end);
+          info.event.setEnd(new Date(start.getTime() + parseInt(dur,10)*60000));
         }
       }
     });
-
     calendar.render();
 
-    // 生成按钮逻辑：请求后端 /recommend/tasks-lite
-    const genBtn = document.getElementById('genBtn');
-    const pool = document.getElementById('extPool');
+    // ======== 工具函数 / Helpers ========
+    const pool = document.getElementById('pool');
 
-    genBtn.addEventListener('click', async () => {
-      const interests = document.getElementById('interests').value
-        .split(',').map(s => s.trim()).filter(Boolean);
-      const availability = document.getElementById('availability').value
-        .split(',').map(s => s.trim()).filter(Boolean);
-
-      // 调用后端轻量推荐接口 / Call backend lite recommender
-      const resp = await fetch('/recommend/tasks-lite', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ interests, availability })
-      });
-      const tasks = await resp.json();
-
-      // 渲染为可拖拽卡片（外部事件）/ Render external draggable cards
-      pool.innerHTML = '';
-      tasks.forEach(t => {
-        const div = document.createElement('div');
-        div.className = 'ext-item';
-        div.textContent = `${t.title}（${t.duration}分钟）`;
-        // 用 dataset 挂载给日历的元信息 / attach meta via dataset
-        div.dataset.event = JSON.stringify({ title: t.title, extendedProps: { tag: t.tag, reason: t.reason } });
-        div.dataset.durationMins = String(t.duration);
-        pool.appendChild(div);
-      });
-
-      // 启用 FullCalendar 外部拖拽 / Enable external drag
-      // 说明：FullCalendar v6 全局导出 Draggable 在 FullCalendar.Draggable
-      new FullCalendar.Draggable(pool, {
-        itemSelector: '.ext-item',
-        eventData: function(el) {
-          // 把外部元素的自定义数据传给日历事件 / pass dataset to event
+    function enableExternalDrag(container){
+      new FullCalendar.Draggable(container, {
+        itemSelector: '.card',
+        eventData(el){
           const meta = JSON.parse(el.dataset.event);
           return meta;
         }
       });
+    }
+
+    function renderCards(tasks){
+      pool.innerHTML = '';
+      if (!tasks || tasks.length===0){
+        pool.innerHTML = '<div class="empty">没有可用任务 / No tasks</div>';
+        return;
+      }
+      tasks.forEach(t=>{
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.textContent = `${t.title}（${t.duration}分钟）`;
+        div.title = t.reason || '';
+        div.dataset.event = JSON.stringify({ title:t.title, extendedProps:{ tag:t.tag||'', reason:t.reason||'' } });
+        div.dataset.durationMins = String(t.duration || 45);
+        pool.appendChild(div);
+      });
+      enableExternalDrag(pool);
+    }
+
+    async function postJSON(url, body){
+      const resp = await fetch(url,{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body||{}) });
+      if (!resp.ok){ throw new Error(await resp.text()); }
+      return resp.json();
+    }
+
+    // ======== 基于兴趣快速生成 / tasks-lite ========
+    document.getElementById('genBtn').addEventListener('click', async ()=>{
+      const interests = document.getElementById('interests').value.split(',').map(s=>s.trim()).filter(Boolean);
+      const availability = document.getElementById('availability').value.split(',').map(s=>s.trim()).filter(Boolean);
+      try{
+        const tasks = await postJSON('/recommend/tasks-lite', { interests, availability });
+        renderCards(tasks);
+      }catch(e){
+        alert('生成失败：'+e.message);
+      }
     });
 
-    // 保存按钮：将当前日历事件发送到后端 / Save events to backend
-    const saveBtn = document.getElementById('saveBtn');
-    saveBtn.addEventListener('click', async () => {
-      const events = calendar.getEvents().map(ev => ({
+    // ======== AI 对话生成任务 / ai-suggest ========
+    document.getElementById('askBtn').addEventListener('click', async ()=>{
+      const prompt = document.getElementById('prompt').value.trim();
+      if (!prompt) return alert('先输入你的诉求 / Please enter a prompt.');
+
+      const provider = document.querySelector('input[name="provider"]:checked').value;
+      try{
+        const resp = await fetch(`/recommend/ai-suggest?provider=${encodeURIComponent(provider)}&q=${encodeURIComponent(prompt)}`);
+        if (!resp.ok) throw new Error(await resp.text());
+        const tasks = await resp.json();      // 期望 [{title,duration,tag,reason}]
+        renderCards(tasks);
+      }catch(e){
+        alert('AI 生成失败：'+e.message);
+      }
+    });
+
+    // ======== 保存 / 查看 ========
+    document.getElementById('saveBtn').addEventListener('click', async ()=>{
+      const events = calendar.getEvents().map(ev=>({
         title: ev.title,
         start: ev.start?.toISOString(),
         end: ev.end?.toISOString() || null,
         extendedProps: ev.extendedProps || {}
       }));
-      const resp = await fetch('/calendar/save', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(events)
-      });
-      const data = await resp.json();
-      alert(`已保存事件数量 / Saved count: ${data.count}`);
+      try{
+        const data = await postJSON('/calendar/save', events);
+        alert(`已保存 ${data.count} 条事件`);
+      }catch(e){
+        alert('保存失败：'+e.message);
+      }
     });
 
-    // 查看已保存（调试）/ View saved
-    const dumpBtn = document.getElementById('dumpBtn');
-    dumpBtn.addEventListener('click', async () => {
+    document.getElementById('dumpBtn').addEventListener('click', async ()=>{
       const resp = await fetch('/calendar/dump');
       const data = await resp.json();
-      alert('已保存事件（调试）/ Saved events:\n' + JSON.stringify(data, null, 2));
+      alert('已保存事件：\n'+JSON.stringify(data,null,2));
     });
-  });
-</script>
+  </script>
 </body>
 </html>
