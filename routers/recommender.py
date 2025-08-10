@@ -9,6 +9,12 @@ from models.user_model import UserProfile          # 用户画像 / user profile
 from models.task_model import Task                 # 任务模型 / task schema
 from recommender.core import recommend_tasks       # 核心推荐逻辑 / core recommender
 
+from typing import Literal
+from fastapi import Query
+from utils.openai_client import suggest_activities_with_openai
+from utils.cohere_client import suggest_activities_with_cohere
+from utils.hf_client import suggest_activities_with_hf
+
 # 只创建一个路由器实例；不要重复定义，否则会覆盖之前注册的接口
 # Create a single APIRouter instance. Do NOT redefine it later in the file.
 router = APIRouter()
@@ -96,3 +102,34 @@ async def tasks_lite(req: LiteReq):
                 reason=f"结合你的兴趣「{interest}」与作息，先安排{tag}训练与阅读巩固。"
             ))
     return out
+
+# ============= 接口三：AI 直产活动条（统一结构，前端直接拖拽） =============
+# GET /recommend/ai-suggest?q=...&provider=openai|cohere|hf
+# 说明：调用指定大模型，返回 [{title, duration, tag, reason}] 统一结构
+@router.get("/ai-suggest")
+def ai_suggest(
+    q: str = Query(..., description="用户自然语言需求 / user prompt"),
+    provider: Literal["openai", "cohere", "hf"] = Query("openai")
+):
+    """
+    返回统一结构的活动条：
+    [{title, duration(分钟), tag(skill|reading|sport|social|art), reason}]
+    """
+    if provider == "openai":
+        data = suggest_activities_with_openai(q)
+    elif provider == "cohere":
+        data = suggest_activities_with_cohere(q)
+    else:
+        data = suggest_activities_with_hf(q)
+
+    # 兜底，确保字段完整，避免前端渲染报错
+    out = []
+    for x in (data or []):
+        out.append({
+            "title": str(x.get("title", "Untitled"))[:60],
+            "duration": int(x.get("duration", 45)),
+            "tag": x.get("tag", "skill"),
+            "reason": str(x.get("reason", ""))
+        })
+    return out
+
