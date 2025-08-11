@@ -25,7 +25,7 @@ app = FastAPI(
 # 首页路由
 @app.get("/")
 def serve_home():
-    return FileResponse("front/index.html")
+    return FileResponse("front/app.html")
 
 # 日历页面路由
 @app.get("/calendar-page")
