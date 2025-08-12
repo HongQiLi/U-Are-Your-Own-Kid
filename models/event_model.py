@@ -10,6 +10,6 @@ class Event(SQLModel, table=True):
     start: str                            # ISO 时间字符串
     end: str
     allDay: bool = False
-    role: str = "child"                   # 可用于家长/孩子视图
+    role: str = "child"                   # 视图/权限用途 / for child/parent views
     notes: str = ""
     owner_id: uuid.UUID                   # 归属用户（鉴权后自动写入）
