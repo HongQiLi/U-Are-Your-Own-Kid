@@ -1,7 +1,7 @@
 # routers/user.py
 
 from fastapi import APIRouter, HTTPException
-from models.user_model import UserProfile
+from models.user_profile import UserProfile
 
 router = APIRouter()
 
