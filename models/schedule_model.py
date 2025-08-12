@@ -1,11 +1,11 @@
 # models/schedule_model.py
-# 日程结构 / User Schedule Schema
+from sqlmodel import SQLModel, Field, Column, JSON
+import uuid
+from typing import Dict, Optional
 
-from pydantic import BaseModel
-from typing import List
-from models.task_model import Task
+class Schedule(SQLModel, table=True):
+    __tablename__ = "schedules"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    owner_id: uuid.UUID                                           #  归属用户
+    availability: Dict[str, int] = Field(sa_column=Column(JSON))  #  存 JSON
 
-class UserSchedule(BaseModel):
-    user_id: str         # 用户 ID / User ID
-    date: str            # 日期（YYYY-MM-DD）/ Date
-    tasks: List[Task]    # 当日任务列表 / Task list for the day
