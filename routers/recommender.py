@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List
 
-from models.user_model import UserProfile          # 用户画像 / user profile schema
+from models.user_profile import UserProfile          # 用户画像 / user profile schema
 from models.task_model import Task                 # 任务模型 / task schema
 from recommender.core import recommend_tasks       # 核心推荐逻辑 / core recommender
 
