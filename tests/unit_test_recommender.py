@@ -1,7 +1,7 @@
 # tests/test_recommender.py
 # 推荐系统单元测试 / Recommender logic unit test
 
-from models.user_model import UserProfile
+from models.user_profile import UserProfile
 from recommender.core import recommend_tasks
 
 def test_recommend_tasks():
