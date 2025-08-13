@@ -2,7 +2,7 @@
 # Explainable AI reasoning via different LLMs (OpenAI, Cohere, DeepSeek)
 
 from fastapi import APIRouter, HTTPException, Query
-from models.user_model import UserProfile
+from models.user_profile import UserProfile
 from recommender.justifier import llm_openai, llm_cohere, llm_deepseek
 
 router = APIRouter()
