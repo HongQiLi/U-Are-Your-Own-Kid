@@ -8,7 +8,7 @@ from .feedback import router as feedback_router
 from .parent import router as parent_router
 from .calendar_sync import router as calendar_sync_router
 
-# 把所有路由放在一个列表里，方便 main.py 引用
+# for main.py 
 all_routers = [
     user_router,
     schedule_router,
