@@ -1,6 +1,6 @@
 # test/test_prompt.py
 
-from models.user_model import UserProfile
+from models.user_profile import UserProfile
 from utils.prompt_builder import build_prompt
 
 def test_prompt_generation():
