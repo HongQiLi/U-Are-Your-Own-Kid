@@ -3,7 +3,7 @@
 
 from utils.schedule_optimizer import generate_schedule
 from utils.interest_extractor import extract_interest_from_survey
-from models.user_model import UserProfile
+from models.user_profile import UserProfile
 from models.task_model import Task
 from recommender.contextual_rules import get_optimal_task_type_by_time
 
