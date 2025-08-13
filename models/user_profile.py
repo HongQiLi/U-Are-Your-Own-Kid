@@ -1,4 +1,4 @@
-# models/user_model.py
+# models/user_profile.py
 # 用户画像结构定义 / User Profile Schema
 
 from pydantic import BaseModel
