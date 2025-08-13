@@ -7,7 +7,7 @@ from fastapi_users.authentication import AuthenticationBackend, BearerTransport,
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.engine import async_session_maker
-from models.user_model import User
+from models.auth_user import User
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
