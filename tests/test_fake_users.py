@@ -1,6 +1,6 @@
 from faker import Faker
 import random
-from models.user_model import UserProfile
+from models.user_profile import UserProfile
 from recommender.core import recommend_tasks
 
 fake = Faker("zh_CN")
