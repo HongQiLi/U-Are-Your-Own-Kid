@@ -4,7 +4,7 @@
 
 import os
 import requests
-from models.user_model import UserProfile
+from models.user_profile import UserProfile
 from models.task_model import Task
 from recommender.core import build_prompt  # Prompt construction logic for LLM
 
