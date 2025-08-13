@@ -14,7 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # 导入路由模块（保留已有功能模块）
 # Import routers (keep your existing functional modules)
-from routers import user, schedule, recommender, feedback, parent, calendar_sync
+#from routers import user, schedule, recommender, feedback, parent, calendar_sync
+from routers import all_routers
+
 
 # 数据库初始化方法
 # Database initialization function
@@ -114,9 +116,12 @@ async def test_llm(
 # 注册业务功能路由
 # Register business feature routers
 # ========================================
-app.include_router(user.router, prefix="/user", tags=["User"])               # 用户管理 / User management
-app.include_router(schedule.router, prefix="/schedule", tags=["Schedule"])   # 日程管理 / Schedule management
-app.include_router(recommender.router, prefix="/recommend", tags=["Recommender"])  # 推荐系统 / Recommender
-app.include_router(feedback.router, prefix="/feedback", tags=["Feedback"])   # 用户反馈 / Feedback
-app.include_router(parent.router, prefix="/parent", tags=["Parent"])         # 家长模块 / Parent module
-app.include_router(calendar_sync.router, prefix="/calendar", tags=["Calendar"])  # 日历同步 / Calendar sync
+# app.include_router(user.router, prefix="/user", tags=["User"])               # 用户管理 / User management
+# app.include_router(schedule.router, prefix="/schedule", tags=["Schedule"])   # 日程管理 / Schedule management
+# app.include_router(recommender.router, prefix="/recommend", tags=["Recommender"])  # 推荐系统 / Recommender
+# app.include_router(feedback.router, prefix="/feedback", tags=["Feedback"])   # 用户反馈 / Feedback
+# app.include_router(parent.router, prefix="/parent", tags=["Parent"])         # 家长模块 / Parent module
+# app.include_router(calendar_sync.router, prefix="/calendar", tags=["Calendar"])  # 日历同步 / Calendar sync
+
+for r, prefix, tags in all_routers:
+    app.include_router(r, prefix=prefix, tags=tags)
