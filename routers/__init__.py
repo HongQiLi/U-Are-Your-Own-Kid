@@ -1,4 +1,4 @@
-# routers/routers__init__.py
+# routers/__init__.py
 # 初始化 routers 包 / Initialize routers package
 
 from .user import router as user_router
