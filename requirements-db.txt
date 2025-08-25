@@ -1,0 +1,6 @@
+# requirements-db.txt  (install after wire up a database)
+sqlalchemy==2.0.32
+sqlmodel==0.0.21
+aiosqlite==0.20.0      # for SQLite async usage
+passlib[bcrypt]==1.7.4 # if you hash passwords yourself
+python-jose[cryptography]==3.3.0  # if you roll your own JWTs (not fastapi-users)
