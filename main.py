@@ -12,17 +12,20 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-# 导入路由模块（保留已有功能模块）
-# Import routers (keep your existing functional modules)
-#from routers import user, schedule, recommender, feedback, parent, calendar_sync
+# 鉴权模式开关：开发用 Stub，生产切换 fastapi-users
+# Auth mode switch: stub in dev, fastapi-users in prod
+from services.auth import USE_STUB
+
+# 路由集中注册（避免在这里逐个导入）
+# Centralized router registry (avoid per-file imports here)
 from routers import all_routers
 
-
-# 数据库初始化方法
-# Database initialization function
+# 数据库初始化（在真实模式时建表；Stub 模式会被内部跳过）
+# DB init (creates tables in real mode; skipped internally in stub mode)
 from db.engine import init_db
 
-# 只保留 OpenAI 客户端方法 / Keep only the OpenAI client method
+# OpenAI 客户端（保留测试接口）
+# OpenAI client (keep the test endpoint)
 from utils.openai_client import generate_openai_reply as openai_reply
 
 
@@ -37,38 +40,47 @@ app = FastAPI(
 
 
 # ========================================
-# CORS 中间件配置
-# CORS middleware settings (allow cross-origin requests)
+# CORS 中间件配置 / CORS middleware
 # ========================================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 允许所有域名访问（开发环境建议全开放）/ Allow all origins in development
+    allow_origins=["*"],   # 开发期全开放；生产请改为白名单 / Allow all in dev; restrict in prod
     allow_credentials=True,
-    allow_methods=["*"],  # 允许所有 HTTP 方法 / Allow all HTTP methods
-    allow_headers=["*"],  # 允许所有请求头 / Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
 # ========================================
-# 启动事件：初始化数据库
-# Startup event: initialize database
+# 启动事件：初始化数据库 / Startup: init DB
 # ========================================
 @app.on_event("startup")
 async def on_startup():
-    await init_db()  # 创建表结构或连接数据库 / Create tables or connect to DB
+    """
+    在应用启动时初始化数据库：
+    - 真实模式（USE_STUB=False）会创建用户表等
+    - 开发 Stub 模式下，init_db 内部会跳过建表
+    Initialize the database on startup:
+    - Real mode (USE_STUB=False): create auth tables
+    - Stub mode: init_db will no-op internally
+    """
+    try:
+        await init_db()
+    except Exception as e:
+        # 防御性处理，避免启动失败；错误会打印出来便于排查
+        # Defensive: don't crash on init; print error for diagnosing
+        print("DB init skipped or failed:", e)
 
 
 # ========================================
-# 静态文件挂载
-# Mount static file directories
+# 静态文件挂载 / Static file mounts
 # ========================================
-app.mount("/static", StaticFiles(directory="static"), name="static")  # 静态资源 / Static resources
+app.mount("/static", StaticFiles(directory="static"), name="static")  # 静态资源 / Static assets
 app.mount("/front", StaticFiles(directory="front"), name="front")    # 前端页面 / Frontend pages
 
 
 # ========================================
-# 首页路由
-# Homepage route
+# 首页路由 / Homepage
 # ========================================
 @app.get("/", include_in_schema=False)
 def serve_home():
@@ -80,21 +92,19 @@ def serve_home():
 
 
 # ========================================
-# 健康检查路由
-# Health check route
+# 健康检查 / Health check
 # ========================================
 @app.get("/health", include_in_schema=False)
 def health():
     """
-    用于检查 API 是否正常运行
+    检查 API 是否正常运行
     Check if the API is running normally
     """
     return {"ok": True}
 
 
 # ========================================
-# OpenAI 测试接口
-# OpenAI test API
+# OpenAI 测试接口 / OpenAI test endpoint
 # ========================================
 @app.get("/test-llm")
 async def test_llm(
@@ -102,26 +112,50 @@ async def test_llm(
 ):
     """
     使用 OpenAI 生成回答
-    Generate a response using OpenAI model
+    Generate a response using the OpenAI client
     """
     try:
-        openai_output = openai_reply(prompt)  # 调用 OpenAI 客户端生成结果 / Call OpenAI client
+        openai_output = openai_reply(prompt)
     except Exception as e:
         openai_output = f"OpenAI error: {str(e)}"
-
     return {"openai": openai_output}
 
 
 # ========================================
-# 注册业务功能路由
-# Register business feature routers
+# 注册业务功能路由（集中注册）
+# Register business feature routers (centralized)
 # ========================================
-# app.include_router(user.router, prefix="/user", tags=["User"])               # 用户管理 / User management
-# app.include_router(schedule.router, prefix="/schedule", tags=["Schedule"])   # 日程管理 / Schedule management
-# app.include_router(recommender.router, prefix="/recommend", tags=["Recommender"])  # 推荐系统 / Recommender
-# app.include_router(feedback.router, prefix="/feedback", tags=["Feedback"])   # 用户反馈 / Feedback
-# app.include_router(parent.router, prefix="/parent", tags=["Parent"])         # 家长模块 / Parent module
-# app.include_router(calendar_sync.router, prefix="/calendar", tags=["Calendar"])  # 日历同步 / Calendar sync
-
 for r, prefix, tags in all_routers:
+    # 注意：各子路由文件内请使用“相对路径”装饰器（@router.get("")），避免双前缀
+    # Note: use relative decorators inside sub-routers to avoid double prefix
     app.include_router(r, prefix=prefix, tags=tags)
+
+
+# ========================================
+# 仅在真实模式下，注册登录/注册/用户管理路由（fastapi-users）
+# Register auth/register/users routes ONLY in real mode (fastapi-users)
+# ========================================
+if not USE_STUB:
+    # 延迟导入以避免 Stub 模式下加载 fastapi-users
+    # Lazy-import to avoid loading fastapi-users in stub mode
+    from services.auth import fastapi_users, auth_backend
+    from models.auth_schemas import UserRead, UserCreate, UserUpdate
+
+    # JWT 登录 / JWT login
+    app.include_router(
+        fastapi_users.get_auth_router(auth_backend),
+        prefix="/auth/jwt",
+        tags=["auth"],
+    )
+    # 用户注册 / Registration
+    app.include_router(
+        fastapi_users.get_register_router(UserRead, UserCreate),
+        prefix="/auth",
+        tags=["auth"],
+    )
+    # 用户管理（选用）/ Users management (optional)
+    app.include_router(
+        fastapi_users.get_users_router(UserRead, UserUpdate),
+        prefix="/users",
+        tags=["users"],
+    )
