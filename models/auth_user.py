@@ -9,14 +9,13 @@ import uuid
 # === 数据库表：用户账号（用于注册/登录） ===
 class User(SQLModel, SQLAlchemyBaseUserTableUUID, table=True):
     __tablename__ = "users"
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
 
     # SQLAlchemyBaseUserTableUUID 已含: email, hashed_password, is_active, is_superuser, is_verified
     # 自定义业务字段：
     role: str = "parent"     # "parent" | "child"
     nickname: Optional[str] = None
 
-    # 也可以预留一个 JSON 字段存画像（以后再加）：
+    # 预留 JSON 字段存画像（以后再加）：
     # profile_json: Optional[dict] = Field(default=None, sa_column=Column(JSON))
 
 # === Pydantic Schemas：用于 API 输入/输出 ===
