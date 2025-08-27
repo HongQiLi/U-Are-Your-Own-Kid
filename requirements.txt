@@ -1,26 +1,28 @@
-# FastAPI backend frame
+# --- Core web stack ---
 fastapi
 uvicorn[standard]
 
-# HTTP request
+# --- DB / ORM / Models ---
+sqlmodel
+sqlalchemy
+
+# --- Auth（fastapi-users 路线）---
+fastapi-users[sqlalchemy]
+fastapi-users-db-sqlalchemy
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart      # OAuth2PasswordRequestForm 需要
+
+# --- Config（2 选 1，用哪个就装哪个）---
+pydantic-settings     # 文档里的 Settings 用这个
+
+# --- HTTP & Tests ---
 httpx
-
-# 数据模型与校验
-pydantic
-
-# test tool
 pytest
 Faker
 
-# OpenAI GPT-4 / GPT-3.5
+# --- 可选：LLM 相关 ---
 openai
-
-# Cohere model
 cohere
-
-# Huggingface Hub（DeepSeek R1 & Transformers）
 huggingface_hub
 transformers
-
-# read .env 
-python-dotenv
