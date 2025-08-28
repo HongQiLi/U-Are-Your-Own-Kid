@@ -18,8 +18,8 @@ from db.engine import async_session_maker                         # 异步会话
 from services.auth import current_active_user, User               # 鉴权依赖 / auth dependency
 from models.event_model import Event                              # 事件 ORM 模型 / Event ORM model
 
-# 你可以在这里就加前缀，也可以在 routers/__init__.py 里统一加
-# You may set prefix here, or in routers/__init__.py aggregator.
+# 可在这里就加前缀，也可以在 routers/__init__.py 里统一加
+# set prefix here, or in routers/__init__.py aggregator.
 router = APIRouter(prefix="")   # 为空表示由外部 include_router(prefix="/events") 统一加
 
 
