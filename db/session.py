@@ -1,11 +1,15 @@
-from sqlmodel import SQLModel, Session, create_engine
-from utils.config import settings  # 如果你叫 utils/settings.py，就改成 from utils.settings import settings
+# db/session.py
+# CN: 统一异步会话依赖（保持 import 兼容）
+# EN: Unified async session dependency (keeps import compatibility)
 
-engine = create_engine(settings.DATABASE_URL, echo=False)
+from typing import AsyncGenerator
+from sqlalchemy.ext.asyncio import AsyncSession
+from .engine import async_session_maker  # 复用同一个异步引擎 / reuse the same async engine
 
-def init_db():
-    SQLModel.metadata.create_all(engine)
-
-def get_session():
-    with Session(engine) as session:
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    """
+    CN: FastAPI 依赖项：获取一个异步数据库会话。
+    EN: FastAPI dependency that yields an AsyncSession.
+    """
+    async with async_session_maker() as session:
         yield session
